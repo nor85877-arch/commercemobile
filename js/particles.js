@@ -1,4 +1,4 @@
-/* Quantum particle network with mouse interaction and product-node attraction */
+/* Quantum particle network – reduced density for mobile */
 (() => {
   const canvas = document.createElement('canvas');
   canvas.id = 'quantum-canvas';
@@ -12,7 +12,7 @@
   let W=0, H=0, particles=[], mouse={x:-9999,y:-9999}, productNodes=[];
 
   const PALETTE = ['#00e5ff','#1de9b6'];
-  const CONFIG = { count: 140, maxSpeed: 0.35, linkDist: 120, mouseDist: 160, nodeLinkDist: 180 };
+  const CONFIG = { count: 60, maxSpeed: 0.35, linkDist: 120, mouseDist: 160, nodeLinkDist: 180 };
 
   function resize(){
     W = canvas.width = Math.floor(window.innerWidth * DPR);
@@ -20,7 +20,6 @@
     canvas.style.width = window.innerWidth+'px';
     canvas.style.height = window.innerHeight+'px';
   }
-
   function rand(n){ return Math.random()*n }
   function choice(arr){ return arr[(Math.random()*arr.length)|0] }
 
@@ -36,7 +35,6 @@
       this.x += this.vx; this.y += this.vy;
       if(this.x<0||this.x>W) this.vx*=-1;
       if(this.y<0||this.y>H) this.vy*=-1;
-      // gentle mouse force
       const dx = this.x - mouse.x, dy = this.y - mouse.y;
       const d2 = dx*dx+dy*dy, md = CONFIG.mouseDist*DPR;
       if(d2 < md*md){
@@ -44,7 +42,6 @@
         this.vx += (dx/Math.sqrt(d2+0.001))*f;
         this.vy += (dy/Math.sqrt(d2+0.001))*f;
       }
-      // slight attraction to nearest product node
       if(productNodes.length){
         let nx=0,ny=0, mind=Infinity;
         for(const n of productNodes){
@@ -67,10 +64,9 @@
 
   function collectProductNodes(){
     productNodes = [];
-    const cards = document.querySelectorAll('.product-card');
-    cards.forEach(el => {
-      const rect = el.getBoundingClientRect();
-      productNodes.push({ x: rect.left + rect.width/2, y: rect.top + rect.height/2 });
+    document.querySelectorAll('.product-card').forEach(el=>{
+      const r = el.getBoundingClientRect();
+      productNodes.push({ x: r.left + r.width/2, y: r.top + r.height/2 });
     });
   }
 
@@ -79,6 +75,16 @@
     particles = Array.from({length: CONFIG.count}, () => new Particle());
     collectProductNodes();
     loop();
+    function setRealHeight(){
+      document.documentElement.style.setProperty('--vh', window.innerHeight * 0.01 + 'px');
+    }
+    setRealHeight();
+    window.addEventListener('resize', () => { resize(); collectProductNodes(); setRealHeight(); });
+    window.addEventListener('scroll', collectProductNodes, {passive:true});
+    window.addEventListener('mousemove', e => {
+      mouse.x = e.clientX * DPR; mouse.y = e.clientY * DPR;
+    }, {passive:true});
+    window.addEventListener('mouseout', ()=>{ mouse.x=-9999; mouse.y=-9999; });
   }
 
   function drawLinks(){
@@ -87,28 +93,26 @@
       const a = particles[i];
       for(let j=i+1;j<particles.length;j++){
         const b = particles[j];
-        const dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx,dy);
-        if(d < maxD){
-          const t = 1 - d/maxD;
-          const g = ctx.createLinearGradient(a.x,a.y,b.x,b.y);
-          g.addColorStop(0, 'rgba(0,229,255,'+(0.35*t)+')');
-          g.addColorStop(1, 'rgba(29,233,182,'+(0.35*t)+')');
+        const dx=a.x-b.x,dy=a.y-b.y,d=Math.hypot(dx,dy);
+        if(d<maxD){
+          const t=1-d/maxD;
+          const g=ctx.createLinearGradient(a.x,a.y,b.x,b.y);
+          g.addColorStop(0,'rgba(0,229,255,'+(0.35*t)+)');
+          g.addColorStop(1,'rgba(29,233,182,'+(0.35*t)+)');
           ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
-          ctx.strokeStyle = g; ctx.lineWidth = 1*DPR; ctx.stroke();
+          ctx.strokeStyle=g; ctx.lineWidth=1*DPR; ctx.stroke();
         }
       }
     }
-    // draw connections to product nodes
     for(const n of productNodes){
       for(const p of particles){
-        const dx = p.x - n.x*DPR, dy = p.y - n.y*DPR;
-        const d = Math.hypot(dx,dy);
-        const lim = CONFIG.nodeLinkDist*DPR;
-        if(d < lim){
-          const t = 1 - d/lim;
+        const dx=p.x-n.x*DPR,dy=p.y-n.y*DPR,d=Math.hypot(dx,dy);
+        const lim=CONFIG.nodeLinkDist*DPR;
+        if(d<lim){
+          const t=1-d/lim;
           ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(n.x*DPR,n.y*DPR);
-          ctx.strokeStyle = 'rgba(0,229,255,'+(0.25*t)+')';
-          ctx.lineWidth = 0.8*DPR; ctx.stroke();
+          ctx.strokeStyle='rgba(0,229,255,'+(0.25*t)+)';
+          ctx.lineWidth=0.8*DPR; ctx.stroke();
         }
       }
     }
@@ -121,25 +125,5 @@
     requestAnimationFrame(loop);
   }
 
-  window.addEventListener('resize', () => { resize(); collectProductNodes(); });
-  window.addEventListener('scroll', collectProductNodes, { passive:true });
-  window.addEventListener('mousemove', e => {
-    mouse.x = e.clientX * DPR; mouse.y = e.clientY * DPR;
-  }, { passive:true });
-  window.addEventListener('mouseout', ()=>{ mouse.x=-9999; mouse.y=-9999; });
-
   document.addEventListener('DOMContentLoaded', init);
 })();
-/* existing code ... */
-function init(){
-  resize();
-  particles = Array.from({length: CONFIG.count}, () => new Particle());
-  collectProductNodes();
-  loop();
-  setRealHeight();            // iOS vh fix
-  window.addEventListener('resize', () => { resize(); collectProductNodes(); setRealHeight(); });
-}
-
-function setRealHeight(){
-  document.documentElement.style.setProperty('--vh', window.innerHeight * 0.01 + 'px');
-}
